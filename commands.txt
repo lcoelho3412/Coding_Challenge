@@ -1,0 +1,2 @@
+Activate the Virtual Environment: .venv\Scripts\Activate.ps1
+Iniate server: uvicorn main:app --reload
