@@ -2,3 +2,5 @@ __pycache__
 .env
 venv
 __init__.py
+test_ollama.py
+test_request.py

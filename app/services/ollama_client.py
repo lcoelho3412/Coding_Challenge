@@ -7,35 +7,68 @@ class OllamaClient:
     def __init__(self):
         self.base_url = "http://localhost:11434/api/generate"
         self.model = "llama2"  # Changed from mistral to your available model
-        self.timeout = 60.0  # Increased timeout for slower responses
+        self.timeout = 180.0  # Increased timeout for slower responses
 
     async def ask_marketing_question(self, question: QuestionRequest) -> AnswerResponse:
         """Send question to local Ollama instance with marketing context"""
-        prompt = f"""You are a senior digital marketing expert. Answer this question specifically about marketing:
-        Question: {question.question}
 
-        Requirements:
-        - Respond in under 150 words
-        - Use bullet points when appropriate
-        - Include 1-2 practical examples
-        - Maintain professional tone"""
+        # Use a simple prompt for testing
+        prompt = f"{question.question}\n\nOnly answer if this is related to marketing. Otherwise state you can only answer marketing questions."
+
+        print(">>> Sending request to Ollama...")  # Debug print
 
         async with httpx.AsyncClient() as client:
-            response = await client.post(
-                self.base_url,
-                json={
-                    "model": self.model,
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": {"temperature": 0.7},  # Balances creativity and focus
-                },
-                timeout=self.timeout,
-            )
-            response.raise_for_status()
-            result = response.json()
+            try:
+                response = await client.post(
+                    self.base_url,
+                    json={
+                        "model": self.model,
+                        "prompt": prompt,
+                        "stream": False,
+                        "options": {
+                            "temperature": 0.7
+                        },  # Balances creativity and focus
+                    },
+                    timeout=self.timeout,
+                )
 
-            return AnswerResponse(
-                answer=result["response"],
-                model_used=self.model,
-                timestamp=datetime.now(),
-            )
+                # Check if the request was successful
+                response.raise_for_status()
+
+                print(">>> Response received from Ollama")  # Debug print
+
+                # Assuming the response contains a 'response' key
+                result = response.json()
+
+                return AnswerResponse(
+                    answer=result["response"],
+                    model_used=self.model,
+                    timestamp=datetime.now(),
+                )
+            except httpx.ReadTimeout:
+                print(
+                    ">>> Request timed out. Try increasing the timeout further or check server status."
+                )
+                return None
+            except httpx.RequestError as e:
+                print(f">>> An error occurred: {e}")
+                return None
+            except Exception as e:
+                print(f">>> Unexpected error: {e}")
+                return None
+
+
+# Example of calling the function
+async def main():
+    client = OllamaClient()
+    question = QuestionRequest(
+        question="What is the best strategy for digital marketing?"
+    )
+    response = await client.ask_marketing_question(question)
+
+    if response:
+        print(f"Answer: {response.answer}")
+        print(f"Model Used: {response.model_used}")
+        print(f"Timestamp: {response.timestamp}")
+    else:
+        print("No response received")
