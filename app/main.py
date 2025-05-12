@@ -1,3 +1,4 @@
+# main.py
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from app.models.database import SessionLocal, DBQuestionAnswer
@@ -5,32 +6,27 @@ from app.schemas.schemas import QuestionRequest, AnswerResponse
 from datetime import datetime
 from typing import Annotated
 from sqlalchemy.orm import Session
+from app.services.ollama_client import OllamaClient
 
 app = FastAPI(title="Marketing AI Assistant")
 
-# CORS middleware
+# CORS settings - this allows our frontend to talk to the backend from any origin
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # In production, you'd want to restrict this
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# Database dependency
+# This dependency will provide a database session for each request
 def get_db():
     db = SessionLocal()
     try:
-        yield db
+        yield db  # The session stays open during the request
     finally:
-        db.close()
-
-
-@app.get("/ping")
-async def health_check():
-    """Health check endpoint."""
-    return {"status": "healthy", "version": "0.1.0"}
+        db.close()  # And automatically closes afterward
 
 
 @app.post("/ask", response_model=AnswerResponse)
@@ -38,19 +34,19 @@ async def ask_question(
     question: QuestionRequest, db: Annotated[Session, Depends(get_db)]
 ):
     """Endpoint to ask marketing questions (currently mocked)."""
-    # Mock response for now
+    # For now we're using a mock response, but later we'll call the Ollama client here
     response = AnswerResponse(
         answer="This is a mock response. Real AI integration coming soon.",
         model_used="mock",
         timestamp=datetime.now(),
     )
 
-    # Store in DB (we'll implement this properly later)
+    # Saving to database - notice we create a DBQuestionAnswer instance
     db_qa = DBQuestionAnswer(
         question=question.question,
         answer=response.answer,
     )
-    db.add(db_qa)
-    db.commit()
+    db.add(db_qa)  # Stage the change
+    db.commit()  # Actually save to database
 
     return response
